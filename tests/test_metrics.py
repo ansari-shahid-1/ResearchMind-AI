@@ -102,6 +102,29 @@ def test_citation_metrics_without_citations():
     assert metrics.citation_metrics([], GOLD)["citation_precision"] == 0.0
 
 
+def test_citation_metrics_are_undefined_without_a_reference():
+    # an unanswerable question: citing nothing is correct, so this must not
+    # be scored as a precision failure
+    result = metrics.citation_metrics([], set())
+    assert result["citation_precision"] is None
+    assert result["citation_recall"] is None
+
+
+def test_citation_metrics_undefined_even_if_it_cited_something():
+    result = metrics.citation_metrics([FakeCitation("Paper A", 4)], set())
+    assert result["citation_precision"] is None
+    assert result["cited"] == 1
+
+
+def test_unanswerable_questions_do_not_drag_down_the_average():
+    rows = [
+        {"citation_precision": 1.0},
+        {"citation_precision": None},
+        {"citation_precision": None},
+    ]
+    assert metrics.mean([r["citation_precision"] for r in rows]) == 1.0
+
+
 def test_percentiles():
     values = [10, 20, 30, 40, 50]
     assert metrics.pct(values, 50) == 30

@@ -133,10 +133,13 @@ def citation_metrics(citations: Sequence, gold: set) -> dict:
     Precision is the honest part: a citation pointing at a page that does not
     contain the answer is a fabricated source even if the answer is right.
     """
-    if not citations:
-        return {"citation_precision": 0.0, "citation_recall": 0.0, "cited": 0}
+    # The no-gold check has to come first. For an out-of-scope question the
+    # correct behaviour is to cite nothing, and scoring that as 0.0 precision
+    # punished the system for getting it right.
     if not gold:
         return {"citation_precision": None, "citation_recall": None, "cited": len(citations)}
+    if not citations:
+        return {"citation_precision": 0.0, "citation_recall": 0.0, "cited": 0}
 
     keys = {_key(c.doc_title, c.page) for c in citations}
     correct = keys & gold
