@@ -179,6 +179,29 @@ your output contract. Whatever the model was doing during the loop, it will
 still be doing it when it writes the answer. Make the last step a separate,
 boring, heavily-constrained call.
 
+## The endpoint I never called
+
+I had tested upload, query, list and delete over HTTP. I had never called
+`reindex`, because nothing needed it while I was building.
+
+Called it and got a 404. The registry stores a file name and `reindex` looks
+the PDF up by it, but only the HTTP upload route ever wrote a file into
+`data/uploads`. Everything I had indexed had come through `scripts/ingest.py`,
+so the registry pointed at files that were never copied anywhere, and reindex
+was broken for every document in the system without anything looking wrong.
+
+Fix: `ingest_pdf` now always copies the PDF into the upload dir under its
+content hash, whichever path it arrived by, and heals the registry row if it
+was pointing at a stale name. Re-running the ingest CLI repaired the existing
+three documents.
+
+The regression tests for this (tests/test_pipeline.py) stub out the embedding
+step, because the thing under test is file bookkeeping and loading a
+sentence-transformer to prove a copy exists on disk would be silly.
+
+Lesson: exercise every route once, by hand, even the ones you think nothing
+calls. This one had been broken since the day I wrote it.
+
 ## Things I hit and fixed
 
 - Chroma raises `NotFoundError` when you delete a collection that does not

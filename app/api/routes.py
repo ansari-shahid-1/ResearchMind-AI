@@ -63,7 +63,7 @@ async def upload_document(
     target.write_bytes(raw)
 
     try:
-        doc, duplicate = ingest_pdf(target, filename=target.name, title=title)
+        doc, duplicate = ingest_pdf(target, title=title)
     except Exception as exc:
         target.unlink(missing_ok=True)
         raise HTTPException(status_code=422, detail=f"Could not parse PDF: {exc}") from exc

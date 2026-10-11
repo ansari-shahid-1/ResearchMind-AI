@@ -227,7 +227,7 @@ it and you have to re-ingest, or the index mixes old and new chunk boundaries.
 Tests:
 
 ```bash
-python -m pytest          # 62 tests, a few seconds, no model downloads
+python -m pytest          # 96 tests, under 5 seconds, no model downloads
 ```
 
 ## Limitations

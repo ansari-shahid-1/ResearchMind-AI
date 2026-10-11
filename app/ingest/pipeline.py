@@ -3,9 +3,14 @@
 One function, `ingest_pdf`, because that is the only way a document ever
 enters the system. Duplicate handling is by content hash: uploading the same
 PDF twice returns the first one instead of double-indexing it.
+
+A copy of every PDF is kept in the upload dir, named after its content hash.
+That is what `reindex` reads from, so it needs to hold for documents that
+arrived through the CLI too and not just through the HTTP route.
 """
 
 import hashlib
+import shutil
 from pathlib import Path
 
 from app import registry
@@ -23,9 +28,26 @@ def sha256_of(path: str | Path, chunk_size: int = 1 << 20) -> str:
     return digest.hexdigest()
 
 
+def _ensure_stored(path: Path, doc_id: str) -> Path:
+    """Copy the PDF into the upload dir, named after its content hash.
+
+    Every ingest path has to end up here, not just the HTTP upload. The
+    registry points at a file by name, so a document ingested from the CLI
+    used to leave the registry referencing a path that did not exist and
+    `reindex` would 404 on it. Keying the stored name on the content hash also
+    means re-uploading the same paper overwrites its own file rather than
+    leaving an orphan behind.
+    """
+    settings.ensure_dirs()
+    suffix = path.suffix or ".pdf"
+    target = settings.upload_dir / f"{doc_id}{suffix}"
+    if path.resolve() != target.resolve():
+        shutil.copyfile(path, target)
+    return target
+
+
 def ingest_pdf(
     path: str | Path,
-    filename: str | None = None,
     title: str | None = None,
 ) -> tuple[Document, bool]:
     """Returns (document, was_duplicate)."""
@@ -33,15 +55,21 @@ def ingest_pdf(
     registry.init()
 
     digest = sha256_of(path)
+    doc_id = digest[:12]
+    stored = _ensure_stored(path, doc_id)
+
     existing = registry.find_by_hash(digest)
     if existing:
+        # heal documents indexed before the copy existed
+        if existing.filename != stored.name:
+            existing.filename = stored.name
+            registry.add(existing)
         return existing, True
 
     loaded = pdf.load(path)
     pages = loaded["pages"]
     resolved_title = (title or loaded["title"] or path.stem).strip()
 
-    doc_id = digest[:12]
     raw_chunks = chunking.chunk_pages(
         pages,
         size=settings.chunk_size,
@@ -65,7 +93,7 @@ def ingest_pdf(
     doc = Document(
         doc_id=doc_id,
         title=resolved_title,
-        filename=filename or path.name,
+        filename=stored.name,
         pages=loaded["page_count"],
         chunks=len(chunks),
         size_bytes=path.stat().st_size,
@@ -79,8 +107,9 @@ def ingest_pdf(
 def remove_document(doc_id: str) -> bool:
     """Drops chunks from the vector store and the registry entry.
 
-    The original file is left on disk on purpose - re-ingesting is cheap and
-    the uploaded PDF is the only copy of the source.
+    The stored PDF is left on disk on purpose. Re-ingesting it is cheap, it is
+    the only copy the system has, and deleting user files on a DELETE that was
+    only meant to clear an index would be a nasty surprise.
     """
     store.delete_document(doc_id)
     return registry.remove(doc_id)
