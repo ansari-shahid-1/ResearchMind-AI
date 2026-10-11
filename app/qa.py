@@ -16,6 +16,12 @@ from app.retrieval.search import search
 
 _MARKER = re.compile(r"\[(\d+)\]")
 
+# a line that is nothing but a notes heading
+_NOTES_HEADING = re.compile(
+    r"(?m)^[ \t]*(?:analyst[ \t]+)?notes?[ \t]*:?[ \t]*$",
+    re.IGNORECASE,
+)
+
 
 def build_context(chunks) -> str:
     blocks = []
@@ -58,19 +64,41 @@ def grounded_messages(question: str, chunks, notes: str | None = None) -> list[d
     """The prompt shape shared by the RAG path and the agent's writer step.
 
     Both go through this so a citation-format change lands in one place.
+
+    Notes go in the system message, not the user message. When they were in
+    the user message the model treated them as content and pasted them into
+    the answer verbatim, heading and all. As system-side working notes with an
+    explicit "never mention these" it stays out of the output.
     """
-    user = f"Sources:\n\n{build_context(chunks)}\n\nQuestion: {question}"
+    system = GROUNDED_SYSTEM
     if notes and notes.strip():
-        user += (
-            "\n\nAnalyst notes gathered while searching (structure the answer with "
-            "these, but every fact still needs one of the numbered sources above "
-            "and its marker):\n"
-            + notes.strip()[:2000]
+        system += (
+            "\n\nYour own rough working notes from searching are below. They are "
+            "for your eyes only: use them to decide what to say, but never quote, "
+            "list or mention them, and never write the word 'notes' in your "
+            "answer. Output only the final answer.\n"
+            "\n--- working notes ---\n" + notes.strip()[:1500]
         )
+
+    user = f"Sources:\n\n{build_context(chunks)}\n\nQuestion: {question}"
     return [
-        {"role": "system", "content": GROUNDED_SYSTEM},
+        {"role": "system", "content": system},
         {"role": "user", "content": user},
     ]
+
+
+def strip_echoed_notes(text: str) -> str:
+    """Cut a trailing notes block if the model echoed the scaffolding anyway.
+
+    Blunt, but a line containing nothing but "Notes:" (or "Analyst notes:")
+    is not something a real answer contains, and the observed failure is the
+    model repasting the block it was told to keep private.
+    """
+    match = _NOTES_HEADING.search(text or "")
+    if not match:
+        return text
+    head = (text or "")[: match.start()].rstrip()
+    return head or text
 
 
 # Used only when the first attempt comes back with no markers at all. The eval
@@ -90,13 +118,13 @@ def write_cited_answer(
     chunks,
     notes: str | None = None,
 ) -> tuple[str, int, dict]:
-    """Write the final answer, retrying once if it comes back uncited.
+    """Write the final answer, repairing the two failure modes I have seen.
 
     Returns (text, attempts, usage).
     """
     messages = grounded_messages(question, chunks, notes=notes)
     response = llm.chat(messages)
-    text = llm.content_of(response)
+    text = strip_echoed_notes(llm.content_of(response))
     usage = llm.usage_of(response)
 
     if _MARKER.search(text or ""):
@@ -107,7 +135,7 @@ def write_cited_answer(
         {"role": "user", "content": _CITATION_RETRY},
     ]
     second_response = llm.chat(retry)
-    second = llm.content_of(second_response)
+    second = strip_echoed_notes(llm.content_of(second_response))
     usage = llm.merge_usage(usage, llm.usage_of(second_response))
 
     if _MARKER.search(second or ""):

@@ -84,18 +84,29 @@ def test_grounded_messages_labels_sources_with_markers():
     assert user.rstrip().endswith("what is the figure?")
 
 
-def test_grounded_messages_includes_notes_when_given():
-    with_notes = grounded_messages("q", chunks(), notes="my draft reasoning")[1]["content"]
-    without = grounded_messages("q", chunks())[1]["content"]
-    assert "Analyst notes" in with_notes
-    assert "Analyst notes" not in without
+def test_notes_go_in_the_system_message_not_the_user_message():
+    """Notes in the user message got pasted straight into the answer."""
+    system, user = grounded_messages("q", chunks(), notes="my draft reasoning")
+    assert "my draft reasoning" in system["content"]
+    assert "my draft reasoning" not in user["content"]
+    assert "working notes" in system["content"]
+
+
+def test_no_notes_block_when_notes_are_absent():
+    system, _ = grounded_messages("q", chunks())
+    assert "working notes" not in system["content"]
 
 
 def test_grounded_messages_clips_huge_notes():
-    notes = grounded_messages("q", chunks(), notes="z" * 5000)[1]["content"]
-    assert len(notes) < 4000
+    system, _ = grounded_messages("q", chunks(), notes="z" * 5000)
+    assert system["content"].count("z") < 2000
 
 
 def test_grounded_messages_ignores_blank_notes():
-    user = grounded_messages("q", chunks(), notes="   ")[1]["content"]
-    assert "Analyst notes" not in user
+    system, _ = grounded_messages("q", chunks(), notes="   ")
+    assert "working notes" not in system["content"]
+
+
+def test_notes_carry_a_do_not_repeat_instruction():
+    system, _ = grounded_messages("q", chunks(), notes="draft")
+    assert "never quote, list or mention them" in system["content"]

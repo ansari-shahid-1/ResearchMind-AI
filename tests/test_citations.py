@@ -3,6 +3,7 @@ from app.models import RetrievedChunk
 from app.qa import (
     build_context,
     extract_citations,
+    strip_echoed_notes,
     strip_unknown_markers,
     write_cited_answer,
 )
@@ -93,12 +94,50 @@ def test_writer_keeps_the_first_answer_if_the_retry_also_fails(monkeypatch):
     assert text == "first uncited answer"
 
 
-def test_writer_passes_notes_through(monkeypatch):
+def test_writer_passes_notes_through_in_the_system_message(monkeypatch):
     chat, calls = fake_chat(["cited [1]"])
     monkeypatch.setattr(llm, "chat", chat)
 
     write_cited_answer("q", CHUNKS, notes="my analysis")
-    assert "my analysis" in calls[0][1]["content"]
+    system, user = calls[0]
+    assert "my analysis" in system["content"]
+    assert "my analysis" not in user["content"]
+
+
+def test_strip_echoed_notes_removes_a_pasted_notes_block():
+    text = "The figure is 52.7 [1].\n\nAnalyst notes:\n- QDML scored 52.7\n- SDF scored 41.6"
+    assert strip_echoed_notes(text) == "The figure is 52.7 [1]."
+
+
+def test_strip_echoed_notes_handles_plain_heading():
+    text = "Answer paragraph [2].\n\nnotes\nsome working"
+    assert strip_echoed_notes(text) == "Answer paragraph [2]."
+
+
+def test_strip_echoed_notes_leaves_clean_answers_alone():
+    text = "QDML reaches 52.7 F1 on MultiHopLit [1]. SDF reaches 41.6 [2]."
+    assert strip_echoed_notes(text) == text
+
+
+def test_strip_echoed_notes_ignores_notes_inside_a_sentence():
+    text = "The paper's notes show a 12.5 point gap [1]."
+    assert strip_echoed_notes(text) == text
+
+
+def test_strip_echoed_notes_keeps_text_if_heading_is_first_line():
+    text = "Notes:\n- something"
+    assert strip_echoed_notes(text) == text
+
+
+def test_writer_strips_echoed_notes_from_its_answer(monkeypatch):
+    chat, _ = fake_chat(["Real answer [1].\n\nAnalyst notes:\n- leaked working"])
+    monkeypatch.setattr(llm, "chat", chat)
+
+    text, attempts, _ = write_cited_answer("q", CHUNKS, notes="leaked working")
+    assert attempts == 1
+    assert "leaked working" not in text
+    assert text == "Real answer [1]."
+
 
 
 def test_build_context_numbers_and_labels_sources():
