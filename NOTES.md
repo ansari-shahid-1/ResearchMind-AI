@@ -127,7 +127,52 @@ Agent mode, first version -> final:
 | | uncited answers | citation precision | citation recall | LLM judge | max latency |
 |---|---|---|---|---|---|
 | first version | 15/19 | 0.21 | 0.14 | 0.71 | 427 s |
-| final | 0/19 | 0.76 | 0.73 | 0.85 | 9.2 s |
+| final | 0/19 | 0.85 | 0.71 | 0.92 | 7.6 s |
+
+## The notes leak, which the metrics hid
+
+After the fixes above the eval numbers looked fine and I nearly stopped. Then I
+asked the running API a question by hand and the answer came back with this at
+the bottom:
+
+```
+Analyst notes:
+- The MultiHopLit F1 score for QDML is 52.7.
+- ...
+```
+
+The writer was pasting the prompt scaffolding straight into the user-facing
+answer. I had put the notes in the user message, so as far as the model was
+concerned they were content, and content goes in the reply.
+
+The eval had partly hidden this. The echoed notes repeat the right numbers, so
+token F1 and the judge were both *inflated* by the leak. Only reading an actual
+answer showed it.
+
+Fix: move the notes into the system message, tell the model explicitly that
+they are private and must never be mentioned, and add a blunt guard that
+truncates a trailing `Notes:` block if it appears anyway. Agent token F1 went
+from 0.39 to 0.55 and the judge from 0.85 to 0.92 - the leak had been dragging
+the real answer down while padding it with numbers.
+
+Second lesson: the harness is not enough. Run the thing and read the output.
+
+## A metric that punished correct behaviour
+
+Small one, but it matters for a project that is supposed to be about
+measurement. On the two unanswerable questions the right behaviour is to cite
+nothing. `citation_metrics` checked "were there any citations?" before "was
+there a reference answer?", so it scored those as 0.0 precision and dragged the
+aggregate down. Correct refusals were being counted as failures. Reordered the
+checks so citation precision is undefined, not zero, without a reference set.
+
+## The same configuration does not give the same numbers
+
+Three runs of identical code, chunk size and `top_k` gave LLM judge scores of
+0.90, 0.87 and 0.81 for the RAG path. Citation precision moved between 0.78 and
+0.84. That is a 3B model judging 19 answers - the noise floor is wide enough to
+swallow most of the interesting differences, and I have said so in the README
+rather than quoting the run that looked best.
 
 Lesson I am taking from this: the agent's final message is a bad place to put
 your output contract. Whatever the model was doing during the loop, it will

@@ -122,41 +122,46 @@ Run of 2026-10-11, `qwen2.5:3b` on CPU, chunk 900/160, `top_k` 6:
 | Recall@6 | 0.951 | 0.951 |
 | Precision@6 | 0.284 | 0.284 |
 | MRR | 0.956 | 0.956 |
-| Token F1 | 0.544 | 0.390 |
-| Numeric match | 0.764 | **0.819** |
-| LLM judge | **0.900** | 0.853 |
-| Citation precision | **0.843** | 0.765 |
-| Citation recall | **0.765** | 0.726 |
-| Latency mean | **1.78 s** | 3.84 s |
-| Latency p50 | **0.55 s** | 3.03 s |
-| Latency max | 19.1 s | **9.16 s** |
+| Token F1 | 0.549 | **0.563** |
+| Numeric match | 0.793 | **0.859** |
+| LLM judge | 0.811 | **0.917** |
+| Citation precision | 0.824 | **0.853** |
+| Citation recall | 0.696 | **0.706** |
+| Latency mean | **1.97 s** | 4.00 s |
+| Latency p50 | **0.59 s** | 3.36 s |
+| Latency max | 20.4 s | **7.60 s** |
 
 Both modes cite on all 19 questions - no answer came back uncited.
 
-The honest reading, which is not the one the architecture diagram suggests:
+The honest reading:
 
-- **Retrieval is identical, and that is not a real comparison.** The agent is
-  seeded with the same first retrieval and the metric scores the top-6 of the
-  accumulated list, which for the agent *is* the seed. So this row measures the
-  shared first stage, not the searches the agent does afterwards. Scoring the
-  agent's best-of-all-searches would be a more flattering metric and I did not
-  want to report it.
-- **The agent wins on numbers and loses on prose.** Numeric match goes up
-  (0.819 vs 0.764) because the calculator does the arithmetic instead of the
-  model. Token F1 drops (0.390 vs 0.544) because agent answers are longer and
-  formatted, and token overlap punishes both.
-- **On this question set the agent does not pay for itself.** It is 5.5x slower
-  at p50 for a judge score 0.047 lower. These 19 questions are mostly
-  single-hop, which is exactly the case where retrieving once and answering is
-  the right thing to do. The agent machinery is for the multi-hop and
-  comparison questions, and there are only 4 of those here - far too few to
-  draw a conclusion.
-- The `rag` max of 19.1 s is a single cold-start answer (Ollama loading the
-  model); its p50 is 0.55 s.
+- **The retrieval rows are identical by construction and should be ignored as a
+  comparison.** The agent is seeded with the same first retrieval, and the
+  metric scores the top-6 of the accumulated list, which for the agent *is* the
+  seed. So the row measures the shared first stage, not the searches the agent
+  runs afterwards. Scoring the agent's best-of-all-searches would be a more
+  flattering metric and I did not want to report it.
+- **The agent now leads on every accuracy metric and trails only on latency.**
+  It is about 5.7x slower at p50 and about 4.5x slower on the mean.
+- **Do not trust small margins.** I ran the same configuration three times
+  while building this and the LLM judge moved by up to 0.09 between runs, with
+  citation precision moving by about 0.06. The agent/RAG judge gap above
+  (0.106) is only just outside that noise band, so treat it as "probably real"
+  rather than settled. The differences that *are* well outside the noise are
+  numeric match, the latency columns, and everything in the before/after table
+  in [NOTES.md](NOTES.md). A 3B model as judge on 19 questions is a rough
+  instrument.
+- **Four of the 19 questions are multi-hop or comparison** - the case the agent
+  exists for. That is far too few to conclude anything, and it is why I am not
+  claiming the agent is the better mode overall.
+- The `rag` max of 20.4 s is a single cold-start answer (Ollama loading the
+  model); its p50 is 0.59 s.
 
-What the eval earned its keep on: the first version of the agent scored 0.21
-citation precision with 15 of 19 answers uncited and one 427-second runaway.
-Finding that, and fixing it, is written up in [NOTES.md](NOTES.md).
+What the eval actually earned its keep on: the first version of the agent
+scored 0.21 citation precision, left 15 of 19 answers with no citations at all,
+and once took 427 seconds on a single question. None of that was visible by
+reading the code. Finding it, and fixing it, is written up in
+[NOTES.md](NOTES.md).
 
 Metrics: `recall@k` and `precision@k` over gold (doc, page) pairs, MRR, token
 F1 against the gold answer, a strict-number match, citation precision and
