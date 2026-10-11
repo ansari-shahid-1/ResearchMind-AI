@@ -115,62 +115,65 @@ Writes `eval/results/<timestamp>.json` (raw, per question) and a markdown
 report next to it. The raw file records chunk size, models and `top_k`, because
 a score without those is not comparable to anything.
 
-Run of 2026-10-11, `qwen2.5:3b` on CPU, chunk 900/160, `top_k` 6:
+Measured with `qwen2.5:3b` on CPU, chunk 900/160, `top_k` 6. These are ranges
+over the runs of the current code, not one run - a single run is not a
+measurement when the judge is a 3B model.
 
-| Metric | `rag` | `agent` |
-|---|---|---|
-| Recall@6 | 0.951 | 0.951 |
-| Precision@6 | 0.284 | 0.284 |
-| MRR | 0.956 | 0.956 |
-| Token F1 | 0.549 | **0.563** |
-| Numeric match | 0.793 | **0.859** |
-| LLM judge | 0.811 | **0.917** |
-| Citation precision | 0.824 | **0.853** |
-| Citation recall | 0.696 | **0.706** |
-| Latency mean | **1.97 s** | 4.00 s |
-| Latency p50 | **0.59 s** | 3.36 s |
-| Latency max | 20.4 s | **7.60 s** |
+| Metric | `rag` | `agent` | Holds every run? |
+|---|---|---|---|
+| Recall@6 | 0.951 | 0.951 | identical by construction (see below) |
+| Precision@6 | 0.284 | 0.284 | identical by construction |
+| MRR | 0.956 | 0.956 | identical by construction |
+| Numeric match | 0.793-0.805 | 0.832-0.859 | **yes - agent ahead every run** |
+| Token F1 | 0.549-0.553 | 0.533-0.563 | no |
+| LLM judge | 0.81-0.90 | 0.86-0.92 | no - the ordering flips |
+| Citation precision | 0.818-0.824 | 0.745-0.853 | no - the ordering flips |
+| Citation recall | 0.696-0.716 | 0.686-0.706 | no |
+| Latency p50 | 0.59-0.76 s | 3.08-3.36 s | **yes - agent ~5x slower** |
 
 Both modes cite on all 19 questions - no answer came back uncited.
 
-The honest reading:
+What I am actually willing to claim:
 
-- **The retrieval rows are identical by construction and should be ignored as a
-  comparison.** The agent is seeded with the same first retrieval, and the
-  metric scores the top-6 of the accumulated list, which for the agent *is* the
-  seed. So the row measures the shared first stage, not the searches the agent
-  runs afterwards. Scoring the agent's best-of-all-searches would be a more
-  flattering metric and I did not want to report it.
-- **The agent now leads on every accuracy metric and trails only on latency.**
-  It is about 5.7x slower at p50 and about 4.5x slower on the mean.
-- **Do not trust small margins.** I ran the same configuration three times
-  while building this and the LLM judge moved by up to 0.09 between runs, with
-  citation precision moving by about 0.06. The agent/RAG judge gap above
-  (0.106) is only just outside that noise band, so treat it as "probably real"
-  rather than settled. The differences that *are* well outside the noise are
-  numeric match, the latency columns, and everything in the before/after table
-  in [NOTES.md](NOTES.md). A 3B model as judge on 19 questions is a rough
-  instrument.
-- **Four of the 19 questions are multi-hop or comparison** - the case the agent
-  exists for. That is far too few to conclude anything, and it is why I am not
-  claiming the agent is the better mode overall.
-- The `rag` max of 20.4 s is a single cold-start answer (Ollama loading the
-  model); its p50 is 0.59 s.
+- **The calculator earns its keep.** Numeric match is the one accuracy metric
+  the agent wins in every run, and it is the only one with a mechanical
+  explanation instead of a model-vibe one: the arithmetic happens in Python,
+  not in the model.
+- **The agent is about 5x slower** at p50, in every run, in exchange for a
+  judge and citation difference that sits inside the noise.
+- **Everything else is close to a coin flip.** The judge ranking between `rag`
+  and `agent` reversed between two runs of identical code. With 19 questions
+  and a 3B judge, the noise band swallows most of the interesting differences,
+  and I would rather say that than quote the run that flattered the agent.
+- **The retrieval rows are not a comparison.** The agent is seeded with the
+  same first retrieval and the metric scores the top-6 of the accumulated
+  list, which for the agent *is* the seed. It measures the shared first stage,
+  not the searches the agent runs afterwards. Scoring best-of-all-searches
+  would be a more flattering metric and a less honest one.
+- **Only 4 of the 19 questions are multi-hop or comparison** - the case the
+  agent exists for. That is nowhere near enough to conclude anything, and it is
+  the first thing I would fix.
 
-What the eval actually earned its keep on: the first version of the agent
-scored 0.21 citation precision, left 15 of 19 answers with no citations at all,
-and once took 427 seconds on a single question. None of that was visible by
-reading the code. Finding it, and fixing it, is written up in
-[NOTES.md](NOTES.md).
+The `rag` max latency is dominated by a single cold-start answer (Ollama loading
+the model on the first question of the run); its p50 is under a second.
+
+The numbers with real signal in them are the before/after ones in
+[NOTES.md](NOTES.md). The first version of the agent scored 0.21 citation
+precision, left 15 of 19 answers with no citations at all, and once took 427
+seconds on a single question. None of that was visible from reading the code.
 
 Metrics: `recall@k` and `precision@k` over gold (doc, page) pairs, MRR, token
 F1 against the gold answer, a strict-number match, citation precision and
 recall, an LLM judge score, and latency.
 
 Read the numbers honestly. Recall is high because the sample corpus is three
-papers and 25 chunks - this is a pipeline test, not a benchmark. The
-citation-precision numbers are the ones I trust most, because they catch a
-failure mode that token F1 happily rewards.
+papers and 25 chunks - this is a pipeline test, not a benchmark.
+
+If I could keep only one metric it would be citation precision. It is the only
+one that catches a failure mode token F1 and the judge both reward: an answer
+that is right and cites a page that does not contain it. But as the table
+shows, even it is noisy at 19 questions, so I have stopped treating any single
+digit here as a result.
 
 ## Setup
 
