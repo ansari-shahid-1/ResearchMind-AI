@@ -8,8 +8,10 @@ __pycache__/
 data/*
 !data/.gitkeep
 
-# eval outputs
-eval/results/
+# eval outputs are committed on purpose - the README quotes ranges across
+# these runs, so a reader can check the claim rather than trust it. Raw runs
+# are a few hundred KB in total; re-running adds new files, it does not
+# overwrite old ones.
 
 .env
 .freebuff/

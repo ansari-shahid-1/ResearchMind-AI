@@ -115,6 +115,12 @@ Writes `eval/results/<timestamp>.json` (raw, per question) and a markdown
 report next to it. The raw file records chunk size, models and `top_k`, because
 a score without those is not comparable to anything.
 
+Those runs are committed under `eval/results/`, including the early ones that
+scored badly and the small smoke runs. The ranges quoted below are read off
+these files - a number I cannot point at is not worth quoting. Files are never
+overwritten, so a re-run adds a new timestamp instead of erasing the previous
+state.
+
 Measured with `qwen2.5:3b` on CPU, chunk 900/160, `top_k` 6. These are ranges
 over the runs of the current code, not one run - a single run is not a
 measurement when the judge is a 3B model.

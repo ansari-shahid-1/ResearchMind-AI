@@ -1,0 +1,112 @@
+{
+  "meta": {
+    "timestamp": "2026-10-11T15:17:21",
+    "chat_model": "qwen2.5:3b",
+    "embed_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "chunk_size": 900,
+    "chunk_overlap": 160,
+    "top_k": 6,
+    "k": 6,
+    "judge": false
+  },
+  "summaries": {
+    "rag": {
+      "n": 3,
+      "recall@k": 1.0,
+      "precision@k": 0.2778,
+      "mrr": 1.0,
+      "token_f1": 0.6301,
+      "numeric_match": 0.7111,
+      "judge_score": null,
+      "citation_precision": 0.8333,
+      "citation_recall": 0.6667,
+      "mean_ms": 6018.4,
+      "p50_ms": 574.8,
+      "p95_ms": 16963.5,
+      "max_ms": 16963.5
+    }
+  },
+  "rows": [
+    {
+      "id": "sdf-headline",
+      "type": "single_hop",
+      "mode": "rag",
+      "question": "What Recall@20 and answer F1 does SDF reach on SciQA-9k?",
+      "answer": "SDF (Sparse-Dense Fusion) reaches a Recall@20 of 78.4 and an answer F1 of 61.2 on SciQA-9k [1].",
+      "n_sources": 6,
+      "n_citations": 1,
+      "token_f1": 0.8235,
+      "numeric_match": 1.0,
+      "latency_ms": 16963.5,
+      "reported_latency_ms": 16963.4,
+      "steps": 0,
+      "usage": {
+        "prompt_eval_count": 1598,
+        "eval_count": 41,
+        "total_duration": 916546700
+      },
+      "recall": 1.0,
+      "precision": 0.3333,
+      "mrr": 1.0,
+      "hit": true,
+      "citation_precision": 1.0,
+      "citation_recall": 0.5,
+      "cited": 1,
+      "wall_ms": 16963.6
+    },
+    {
+      "id": "sdf-bm25-params",
+      "type": "single_hop",
+      "mode": "rag",
+      "question": "What BM25 parameters does SDF use?",
+      "answer": "SDF uses BM25 parameters with k1 = 1.2 and b = 0.75 [1].",
+      "n_sources": 6,
+      "n_citations": 1,
+      "token_f1": 0.6,
+      "numeric_match": 0.8,
+      "latency_ms": 574.8,
+      "reported_latency_ms": 574.7,
+      "steps": 0,
+      "usage": {
+        "prompt_eval_count": 1570,
+        "eval_count": 27,
+        "total_duration": 561492100
+      },
+      "recall": 1.0,
+      "precision": 0.1667,
+      "mrr": 1.0,
+      "hit": true,
+      "citation_precision": 1.0,
+      "citation_recall": 1.0,
+      "cited": 1,
+      "wall_ms": 574.8
+    },
+    {
+      "id": "sdf-rrf-k",
+      "type": "single_hop",
+      "mode": "rag",
+      "question": "What value of k does SDF use for reciprocal rank fusion, and over what range is performance described as flat?",
+      "answer": "SDF uses k = 40-80 for reciprocal rank fusion, where performance is described as flat [1][3].",
+      "n_sources": 6,
+      "n_citations": 2,
+      "token_f1": 0.4667,
+      "numeric_match": 0.3333,
+      "latency_ms": 516.9,
+      "reported_latency_ms": 516.9,
+      "steps": 0,
+      "usage": {
+        "prompt_eval_count": 1454,
+        "eval_count": 28,
+        "total_duration": 502724700
+      },
+      "recall": 1.0,
+      "precision": 0.3333,
+      "mrr": 1.0,
+      "hit": true,
+      "citation_precision": 0.5,
+      "citation_recall": 0.5,
+      "cited": 2,
+      "wall_ms": 517.0
+    }
+  ]
+}
