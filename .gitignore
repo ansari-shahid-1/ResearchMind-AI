@@ -14,7 +14,6 @@ data/*
 # overwrite old ones.
 
 .env
-.freebuff/
 .pytest_cache/
 .ruff_cache/
 .streamlit/secrets.toml

@@ -1,5 +1,7 @@
 # ResearchMind AI
 
+[![CI](https://github.com/ansari-shahid-1/ResearchMind-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/ansari-shahid-1/ResearchMind-AI/actions/workflows/ci.yml)
+
 Upload a set of research papers, ask questions across all of them, and get
 answers with page-level citations that you can check.
 
@@ -287,3 +289,7 @@ ui/streamlit_app.py
 scripts/             ingest, ask, sample-paper generator
 tests/
 ```
+
+## License
+
+MIT, see [LICENSE](LICENSE).
