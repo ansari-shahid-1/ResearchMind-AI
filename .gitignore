@@ -1,0 +1,19 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# local data (uploads, chroma index, sqlite registry)
+# `data/*` rather than `data/` so the .gitkeep negation below actually works
+data/*
+!data/.gitkeep
+
+# eval outputs
+eval/results/
+
+.env
+.freebuff/
+.pytest_cache/
+.ruff_cache/
+.streamlit/secrets.toml
+.DS_Store
